@@ -5,7 +5,7 @@ from streamlit_gsheets import GSheetsConnection
 
 # --- CONFIGURATION ---
 # Replace this with your Google Sheet URL
-SHEET_URL = "لینک_گوگل_شیت_خودت_را_اینجا_بگذار"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1qGJ-7uyv1_T3GvynT3HYKVDSn8GYLbPVbhBMNhMovjU/edit?gid=0#gid=0"
 
 USER_CREDENTIALS = {
     "alireza": "admin2026",
