@@ -63,11 +63,11 @@ if submit:
         }
         
         # Get existing data
-        existing_data = conn.read(spreadsheet=SHEET_URL)
-        # Update Data
-        updated_df = pd.concat([existing_data, pd.DataFrame([new_row])], ignore_index=True)
-        # Write back to Google Sheets
-        conn.update(spreadsheet=SHEET_URL, data=updated_df)
+        # 1. Convert the new row dict into a clean DataFrame
+        new_row_df = pd.DataFrame([new_row])
+        
+        # 2. Append the new row directly to Google Sheets (Using the correct sheet name, usually "Sheet1")
+        conn.update(spreadsheet=SHEET_URL, worksheet="Sheet1", data=new_row_df)
         
         st.success(f"✅ Data synced to Global Database! Unit: {barcode.upper()}")
     else:
