@@ -1,11 +1,10 @@
 import streamlit as st
-import pandas as pd
+import requests
 from datetime import datetime
-from streamlit_gsheets import GSheetsConnection
 
 # --- CONFIGURATION ---
-# Replace this with your Google Sheet URL
-SHEET_URL = "https://docs.google.com/spreadsheets/d/118V_sZ8YWvcD7_Dlco-4UvtoTpS_BYdbSi8xKskXDWE/edit?usp=sharing"
+# TODO: Paste your Google Web App URL here
+WEBAPP_URL = "https://script.google.com/macros/s/AKfycbya-PN_qZ20dy1RMX4utbyI6ozjMJ80mdVJb0398_pJ4KK48mLhmhAzGnaJdlL4Avqu/exec"
 
 USER_CREDENTIALS = {
     "alireza": "admin2026",
@@ -14,9 +13,6 @@ USER_CREDENTIALS = {
 }
 
 st.set_page_config(page_title="GSM Systems Cloud", page_icon="📶")
-
-# Connection to Google Sheets
-conn = st.connection("gsheets", type=GSheetsConnection)
 
 # --- LOGIN LOGIC ---
 if "logged_in" not in st.session_state:
@@ -37,7 +33,7 @@ if not st.session_state["logged_in"]:
     st.stop()
 
 # --- APP INTERFACE ---
-st.title("📶 GSM Systems Tracker (Global)")
+st.title("📶 GSM Systems Tracker")
 st.write(f"Technician: **{st.session_state['username'].capitalize()}**")
 
 with st.form("tracking_form", clear_on_submit=True):
@@ -50,8 +46,8 @@ with st.form("tracking_form", clear_on_submit=True):
 if submit:
     if barcode:
         now = datetime.now()
-        # Create a dictionary for the new row
-        new_row = {
+        # Prepare data payload
+        payload = {
             "Timestamp": now.strftime("%Y-%m-%d %H:%M:%S"),
             "Date": now.strftime("%Y-%m-%d"),
             "Time": now.strftime("%H:%M:%S"),
@@ -62,19 +58,15 @@ if submit:
             "Technician_Comment": comment
         }
         
-        # Get existing data
-        # 1. Convert the new row dict into a clean DataFrame
-        new_row_df = pd.DataFrame([new_row])
-        
-        # 2. Append the new row directly to Google Sheets (Using the correct sheet name, usually "Sheet1")
-        conn.update(spreadsheet=SHEET_URL, worksheet="Sheet1", data=new_row_df)
-        
-        st.success(f"✅ Data synced to Global Database! Unit: {barcode.upper()}")
+        # Send data straight to Google Sheet via Web App
+        with st.spinner("Syncing to database..."):
+            try:
+                response = requests.post(WEBAPP_URL, json=payload)
+                if response.status_code == 200:
+                    st.success(f"✅ Data successfully synced! Unit: {barcode.upper()}")
+                else:
+                    st.error("⚠️ Connection successful but Sheet rejected the data.")
+            except Exception as e:
+                st.error(f"Error connecting to Cloud: {e}")
     else:
         st.error("Barcode is required!")
-
-# Admin View
-if st.sidebar.text_input("Admin Access", type="password") == "GSM2026":
-    st.write("### Live Data from Google Sheets")
-    data = conn.read(spreadsheet=SHEET_URL)
-    st.dataframe(data)
