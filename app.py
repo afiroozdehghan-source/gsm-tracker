@@ -9,7 +9,11 @@ WEBAPP_URL = "https://script.google.com/macros/s/AKfycbya-PN_qZ20dy1RMX4utbyI6oz
 USER_CREDENTIALS = {
     "alireza": "admin2026",
     "keno": "keno123",
-    "mbina": "mbina123"
+    "mbina": "mbina123",
+    "john":"admin123",
+    "thabang":"thabang123",
+    "khanyisani":"khanyisani123",
+    "tshepo":"tshepo123"
 }
 
 st.set_page_config(page_title="GSM Systems Cloud", page_icon="📶")
