@@ -13,7 +13,8 @@ USER_CREDENTIALS = {
     "john":"admin123",
     "thabang":"thabang123",
     "khanyisani":"khanyisani123",
-    "tshepo":"tshepo123"
+    "tshepo":"tshepo123",
+    "dennis":"dennis123"
 }
 
 st.set_page_config(page_title="GSM Systems Cloud", page_icon="📶")
