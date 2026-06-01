@@ -4,19 +4,19 @@ from datetime import datetime
 import pytz
 
 # --- CONFIGURATION ---
-# TODO: لینک وب‌اپ گوگل اسکریپت خودت را در خط زیر جایگزین کن
+# لینک فعال وب‌اپ گوگل اسکریپت شما
 WEBAPP_URL = "https://script.google.com/macros/s/AKfycbya-PN_qZ20dy1RMX4utbyI6ozjMJ80mdVJb0398_pJ4KK48mLhmhAzGnaJdlL4Avqu/exec" 
 
 USER_CREDENTIALS = {
     "alireza": "admin2026",
     "keno": "keno123",
     "mbina": "mbina123",
-    "john":"admin123",
-    "thabang":"thabang123",
-    "khanyisani":"khanyisani123",
-    "tshepo":"tshepo123",
-    "dennis":"dennis123",
-    "malcom":"malcom123"
+    "john": "admin123",
+    "thabang": "thabang123",
+    "khanyisani": "khanyisani123",
+    "tshepo": "tshepo123",
+    "dennis": "dennis123",
+    "malcom": "malcom123"
 }
 
 st.set_page_config(page_title="GSM Systems Cloud", page_icon="📶")
@@ -43,19 +43,20 @@ if not st.session_state["logged_in"]:
 st.title("📶 GSM Systems Tracker")
 st.write(f"Technician: **{st.session_state['username'].capitalize()}**")
 
-# ایجاد کلید حافظه برای مدیریت کادر بارکد
+# ایجاد و مدیریت کلید حافظه برای فیلد بارکد
 if "barcode_input" not in st.session_state:
     st.session_state["barcode_input"] = ""
 
-# کادر بارکد متصل به حافظه موقت (خارج از فرم برای کنترل اِنتر اسکنر)
+# کادر اسکن بارکد (خارج از فرم برای بی اثر کردن Enter اسکنر)
 barcode = st.text_input("Scan Barcode (Place cursor here and scan)", key="barcode_input")
 
-# ساختار استاندارد فرم استریملیت برای بقیه گزینه‌ها
-with st.form("activity_form", clear_on_submit=True):
-    activity = st.radio("Activity", ["Screen Test", "Repair", "Soak Test"], horizontal=True)
-    status = st.selectbox("Status", ["Started", "Passed", "Failed", "BER"])
-    comment = st.text_input("Notes")
-    submit = st.form_submit_button("Submit to Cloud")
+# گزینه‌های فعالیت، وضعیت و یادداشت‌ها
+activity = st.radio("Activity", ["Screen Test", "Repair", "Soak Test"], horizontal=True)
+status = st.selectbox("Status", ["Started", "Passed", "Failed", "BER"])
+comment = st.text_input("Notes")
+
+# دکمه ثبت مستقل (جلوگیری از قفل شدن حافظه و تضمین پاک شدن فیلد بارکد)
+submit = st.button("Submit to Cloud", type="primary")
 
 # پردازش اطلاعات پس از کلیک روی دکمه ثبت
 if submit:
@@ -80,12 +81,15 @@ if submit:
             try:
                 response = requests.post(WEBAPP_URL, json=payload)
                 if response.status_code == 200:
-                    # نمایش پیغام موفقیت سبز رنگ پایدار روی صفحه
+                    # ۱. فیلد بارکد را در حافظه کاملاً خالی می‌کنیم
+                    st.session_state["barcode_input"] = ""
+                    
+                    # ۲. نوتیفیکیشن و پیغام موفقیت پایدار را نشان می‌دهیم
+                    st.toast(f"✅ Unit {barcode.upper().strip()} successfully synced!")
                     st.success(f"✅ Data successfully synced! Unit: {barcode.upper().strip()}")
                     
-                    # ترفند استاندارد برای خالی کردن کادر بارکد بدون ایجاد تداخل در حافظه (Session State)
-                    st.session_state["barcode_input"] = ""
-                    st.experimental_rerun()
+                    # ۳. بازنشانی اصولی صفحه برای سفید شدن کادر متن
+                    st.rerun()
                 else:
                     st.error("⚠️ Connection successful but Sheet rejected the data.")
             except Exception as e:
