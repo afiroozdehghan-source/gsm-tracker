@@ -42,25 +42,34 @@ if not st.session_state["logged_in"]:
 st.title("📶 GSM Systems Tracker")
 st.write(f"Technician: **{st.session_state['username'].capitalize()}**")
 
-# ایجاد و مدیریت کلید حافظه برای فیلد بارکد
+# ایجاد و مدیریت کلیدهای حافظه برای تمام فیلدها
 if "barcode_input" not in st.session_state:
     st.session_state["barcode_input"] = ""
+if "activity_input" not in st.session_state:
+    st.session_state["activity_input"] = "Screen Test"
+if "status_input" not in st.session_state:
+    st.session_state["status_input"] = "Started"
+if "notes_input" not in st.session_state:
+    st.session_state["notes_input"] = ""
 
-# تابع بازنشانی کادر بارکد که به دکمه متصل می‌شود
-def clear_barcode_field():
+# تابع بازنشانی تمام فیلدها به حالت اولیه بعد از کلیک روی دکمه
+def clear_all_fields():
     st.session_state["barcode_to_submit"] = st.session_state["barcode_input"]
     st.session_state["barcode_input"] = ""
+    st.session_state["activity_input"] = "Screen Test"  # ریست به گزینه اول
+    st.session_state["status_input"] = "Started"      # ریست به گزینه اول
+    st.session_state["notes_input"] = ""              # خالی کردن کادر یادداشت
 
 # کادر اسکن بارکد
 barcode = st.text_input("Scan Barcode (Place cursor here and scan)", key="barcode_input")
 
-# گزینه‌های فعالیت و وضعیت
-activity = st.radio("Activity", ["Screen Test", "Repair", "Soak Test"], horizontal=True)
-status = st.selectbox("Status", ["Started", "Passed", "Failed", "BER"])
-comment = st.text_input("Notes")
+# گزینه‌های فعالیت، وضعیت و یادداشت‌ها (همگی متصل به سیستم ریست هوشمند)
+activity = st.radio("Activity", ["Screen Test", "Repair", "Soak Test"], horizontal=True, key="activity_input")
+status = st.selectbox("Status", ["Started", "Passed", "Failed", "BER"], key="status_input")
+comment = st.text_input("Notes", key="notes_input")
 
-# دکمه ثبت مستقل مجهز به تابع کمکی پاک‌کننده (حل قطعی ارور قرمز رنگ)
-submit = st.button("Submit to Cloud", type="primary", on_click=clear_barcode_field)
+# دکمه ثبت مستقل مجهز به تابع ریست کلی
+submit = st.button("Submit to Cloud", type="primary", on_click=clear_all_fields)
 
 # پردازش اطلاعات
 if submit:
