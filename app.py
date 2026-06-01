@@ -1,10 +1,11 @@
 import streamlit as st
 import requests
 from datetime import datetime
+import pytz  # اضافه شدن کتابخانه مدیریت منطقه زمانی
 
 # --- CONFIGURATION ---
 # TODO: Paste your Google Web App URL here
-WEBAPP_URL = "https://script.google.com/macros/s/AKfycbya-PN_qZ20dy1RMX4utbyI6ozjMJ80mdVJb0398_pJ4KK48mLhmhAzGnaJdlL4Avqu/exec"
+WEBAPP_URL = "https://script.google.com/macros/s/XXXXXX/exec" 
 
 USER_CREDENTIALS = {
     "alireza": "admin2026",
@@ -42,37 +43,45 @@ if not st.session_state["logged_in"]:
 st.title("📶 GSM Systems Tracker")
 st.write(f"Technician: **{st.session_state['username'].capitalize()}**")
 
-with st.form("tracking_form", clear_on_submit=True):
-    barcode = st.text_input("Scan Barcode")
+# تغییر اول: کادر بارکد را از فرم خارج کردیم تا Enter اسکنر باعث ثبت خودکار نشود
+barcode = st.text_input("Scan Barcode (Place cursor here and scan)")
+
+# فرم اصلی فقط برای گزینه‌ها و دکمه نهایی ثبت استفاده می‌شود
+with st.form("activity_form", clear_on_submit=True):
     activity = st.radio("Activity", ["Screen Test", "Repair", "Soak Test"], horizontal=True)
     status = st.selectbox("Status", ["Started", "Passed", "Failed", "BER"])
     comment = st.text_input("Notes")
     submit = st.form_submit_button("Submit to Cloud")
 
+# پردازش و ارسال اطلاعات پس از کلیک روی دکمه ثبت
 if submit:
     if barcode:
-        now = datetime.now()
-        # Prepare data payload
+        # تغییر دوم: تنظیم دقیق زمان بر اساس منطقه زمانی آفریقای جنوبی (SAST)
+        sa_tz = pytz.timezone('Africa/Johannesburg')
+        now_sa = datetime.now(sa_tz)
+        
+        # آماده‌سازی پکیج دیتا
         payload = {
-            "Timestamp": now.strftime("%Y-%m-%d %H:%M:%S"),
-            "Date": now.strftime("%Y-%m-%d"),
-            "Time": now.strftime("%H:%M:%S"),
+            "Timestamp": now_sa.strftime("%Y-%m-%d %H:%M:%S"),
+            "Date": now_sa.strftime("%Y-%m-%d"),
+            "Time": now_sa.strftime("%H:%M:%S"),
             "Technician": st.session_state["username"].capitalize(),
-            "Unit_Barcode": barcode.upper(),
+            "Unit_Barcode": barcode.upper().strip(),  # تابع strip فاصله‌ها و اینترهای اضافی اسکنر را پاک می‌کند
             "Activity_Type": activity,
             "Status": status,
             "Technician_Comment": comment
         }
         
-        # Send data straight to Google Sheet via Web App
         with st.spinner("Syncing to database..."):
             try:
                 response = requests.post(WEBAPP_URL, json=payload)
                 if response.status_code == 200:
-                    st.success(f"✅ Data successfully synced! Unit: {barcode.upper()}")
+                    st.success(f"✅ Data successfully synced! Unit: {barcode.upper().strip()}")
+                    # یک بارگذاری مجدد کوچک برای خالی شدن کادرها بعد از ثبت موفق
+                    st.rerun()
                 else:
                     st.error("⚠️ Connection successful but Sheet rejected the data.")
             except Exception as e:
                 st.error(f"Error connecting to Cloud: {e}")
     else:
-        st.error("Barcode is required!")
+        st.error("Barcode is required! Please scan a unit first.")
