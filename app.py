@@ -52,29 +52,38 @@ if "status_input" not in st.session_state:
 if "notes_input" not in st.session_state:
     st.session_state["notes_input"] = ""
 
-# تابع بازنشانی تمام فیلدها به حالت اولیه بعد از کلیک روی دکمه
+# تابع بازنشانی هوشمند: ابتدا دیتا را امن ذخیره می‌کند، سپس ظاهر فیلدها را ریست می‌کند
 def clear_all_fields():
+    # ۱. پشتیبان‌گیری از تمام فیلدها قبل از پاک شدن
     st.session_state["barcode_to_submit"] = st.session_state["barcode_input"]
+    st.session_state["activity_to_submit"] = st.session_state["activity_input"]
+    st.session_state["status_to_submit"] = st.session_state["status_input"]
+    st.session_state["notes_to_submit"] = st.session_state["notes_input"]
+    
+    # ۲. حالا با خیال راحت ظاهر فیلدها را ریست و سفید می‌کنیم
     st.session_state["barcode_input"] = ""
-    st.session_state["activity_input"] = "Screen Test"  # ریست به گزینه اول
-    st.session_state["status_input"] = "Started"      # ریست به گزینه اول
-    st.session_state["notes_input"] = ""              # خالی کردن کادر یادداشت
+    st.session_state["activity_input"] = "Screen Test"
+    st.session_state["status_input"] = "Started"
+    st.session_state["notes_input"] = ""
 
 # کادر اسکن بارکد
 barcode = st.text_input("Scan Barcode (Place cursor here and scan)", key="barcode_input")
 
-# گزینه‌های فعالیت، وضعیت و یادداشت‌ها (همگی متصل به سیستم ریست هوشمند)
+# گزینه‌های فعالیت، وضعیت و یادداشت‌ها
 activity = st.radio("Activity", ["Screen Test", "Repair", "Soak Test"], horizontal=True, key="activity_input")
 status = st.selectbox("Status", ["Started", "Passed", "Failed", "BER"], key="status_input")
 comment = st.text_input("Notes", key="notes_input")
 
-# دکمه ثبت مستقل مجهز به تابع ریست کلی
+# دکمه ثبت مجهز به تابع بک‌آپ و ریست
 submit = st.button("Submit to Cloud", type="primary", on_click=clear_all_fields)
 
 # پردازش اطلاعات
 if submit:
-    # خواندن بارکد از متغیر موقت امن
+    # خواندن دیتا از متغیرهای پشتیبان‌گیری شده‌ی امن
     target_barcode = st.session_state.get("barcode_to_submit", "").upper().strip()
+    target_activity = st.session_state.get("activity_to_submit", "Screen Test")
+    target_status = st.session_state.get("status_to_submit", "Started")
+    target_comment = st.session_state.get("notes_to_submit", "")
     
     if target_barcode:
         # تنظیم دقیق منطقه زمانی آفریقای جنوبی (SAST)
@@ -87,9 +96,9 @@ if submit:
             "Time": now_sa.strftime("%H:%M:%S"),
             "Technician": st.session_state["username"].capitalize(),
             "Unit_Barcode": target_barcode,
-            "Activity_Type": activity,
-            "Status": status,
-            "Technician_Comment": comment
+            "Activity_Type": target_activity,  # ارسال دیتای اصلی و واقعی
+            "Status": target_status,          # ارسال دیتای اصلی و واقعی
+            "Technician_Comment": target_comment  # ارسال دیتای اصلی و واقعی
         }
         
         with st.spinner("Syncing to database..."):
