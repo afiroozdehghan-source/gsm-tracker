@@ -5,7 +5,7 @@ import pytz  # اضافه شدن کتابخانه مدیریت منطقه زما
 
 # --- CONFIGURATION ---
 # TODO: Paste your Google Web App URL here
-WEBAPP_URL = "https://script.google.com/macros/s/XXXXXX/exec" 
+WEBAPP_URL = "https://script.google.com/macros/s/AKfycbya-PN_qZ20dy1RMX4utbyI6ozjMJ80mdVJb0398_pJ4KK48mLhmhAzGnaJdlL4Avqu/exec" 
 
 USER_CREDENTIALS = {
     "alireza": "admin2026",
