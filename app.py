@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 from datetime import datetime
-import pytz  # اضافه شدن کتابخانه مدیریت منطقه زمانی
+import pytz
 
 # --- CONFIGURATION ---
 # TODO: Paste your Google Web App URL here
@@ -43,30 +43,30 @@ if not st.session_state["logged_in"]:
 st.title("📶 GSM Systems Tracker")
 st.write(f"Technician: **{st.session_state['username'].capitalize()}**")
 
-# تغییر اول: کادر بارکد را از فرم خارج کردیم تا Enter اسکنر باعث ثبت خودکار نشود
-barcode = st.text_input("Scan Barcode (Place cursor here and scan)")
+# ایجاد یک کلید در حافظه برای مدیریت خالی کردن کادر بارکد
+if "barcode_input" not in st.session_state:
+    st.session_state["barcode_input"] = ""
 
-# فرم اصلی فقط برای گزینه‌ها و دکمه نهایی ثبت استفاده می‌شود
+# کادر بارکد متصل به حافظه موقت (st.session_state)
+barcode = st.text_input("Scan Barcode (Place cursor here and scan)", key="barcode_input")
+
 with st.form("activity_form", clear_on_submit=True):
     activity = st.radio("Activity", ["Screen Test", "Repair", "Soak Test"], horizontal=True)
     status = st.selectbox("Status", ["Started", "Passed", "Failed", "BER"])
     comment = st.text_input("Notes")
     submit = st.form_submit_button("Submit to Cloud")
 
-# پردازش و ارسال اطلاعات پس از کلیک روی دکمه ثبت
 if submit:
     if barcode:
-        # تغییر دوم: تنظیم دقیق زمان بر اساس منطقه زمانی آفریقای جنوبی (SAST)
         sa_tz = pytz.timezone('Africa/Johannesburg')
         now_sa = datetime.now(sa_tz)
         
-        # آماده‌سازی پکیج دیتا
         payload = {
             "Timestamp": now_sa.strftime("%Y-%m-%d %H:%M:%S"),
             "Date": now_sa.strftime("%Y-%m-%d"),
             "Time": now_sa.strftime("%H:%M:%S"),
             "Technician": st.session_state["username"].capitalize(),
-            "Unit_Barcode": barcode.upper().strip(),  # تابع strip فاصله‌ها و اینترهای اضافی اسکنر را پاک می‌کند
+            "Unit_Barcode": barcode.upper().strip(),
             "Activity_Type": activity,
             "Status": status,
             "Technician_Comment": comment
@@ -76,8 +76,11 @@ if submit:
             try:
                 response = requests.post(WEBAPP_URL, json=payload)
                 if response.status_code == 200:
+                    # نمایش دائم پیغام موفقیت
                     st.success(f"✅ Data successfully synced! Unit: {barcode.upper().strip()}")
-                    # یک بارگذاری مجدد کوچک برای خالی شدن کادرها بعد از ثبت موفق
+                    
+                    # خالی کردن کادر بارکد در حافظه برای اسکن بعدی بدون حذف شدن پیغام بالا
+                    st.session_state["barcode_input"] = ""
                     st.rerun()
                 else:
                     st.error("⚠️ Connection successful but Sheet rejected the data.")
