@@ -5,8 +5,7 @@ import pytz
 import pandas as pd
 
 # --- CONFIGURATION ---
-# اگر بعد از دیپلوی در گوگل اسکریپت لینک عوض شد، لینک جدید را اینجا بگذارید
-WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxmvt3hhGII1BkEXUqf1gdf7GXRFZHreIMoD055m-FSWCH09sIg0zSxFpLHO2TLpysy/exec" 
+WEBAPP_URL = "https://script.google.com/macros/s/AKfycbya-PN_qZ20dy1RMX4utbyI6ozjMJ80mdVJb0398_pJ4KK48mLhmhAzGnaJdlL4Avqu/exec" 
 
 USER_CREDENTIALS = {
     "alireza": "admin2026",
@@ -41,7 +40,7 @@ if not st.session_state["logged_in"]:
     st.stop()
 
 # --- تابع دریافت زنده دیتای بافر از گوگل شیت ---
-@st.cache_data(ttl=10)  # برای سرعت بالا، دیتا را ۱۰ ثانیه کش می‌کند و بعد خودکار آپدیت می‌کند
+@st.cache_data(ttl=5) # کاهش زمان کش به ۵ ثانیه برای همگام‌سازی سریع‌تر
 def fetch_live_buffer():
     try:
         response = requests.get(WEBAPP_URL)
@@ -53,7 +52,6 @@ def fetch_live_buffer():
 
 # خواندن دیتای زنده کارگاه از گوگل شیت
 live_tasks = fetch_live_buffer()
-active_barcodes = [task["Unit_Barcode"].upper().strip() for task in live_tasks]
 
 # --- APP INTERFACE ---
 st.title("📶 GSM Systems Tracker")
@@ -101,20 +99,29 @@ if submit:
         current_tech = st.session_state["username"].capitalize()
         is_error = False
         
-        # ----------------- سیستم کنترل خطای زنده متصل به گوگل شیت -----------------
+        # ----------------- سیستم کنترل خطای زنده و دو قفله متصل به گوگل شیت -----------------
+        
+        # پیدا کردن اینکه آیا این بارکد دقیقاً با همین نوع فعالیت در حال حاضر باز است یا خیر
+        matching_job = next((item for item in live_tasks if 
+                             item["Unit_Barcode"].upper().strip() == target_barcode and 
+                             item["Activity_Type"].lower().strip() == target_activity.lower().strip()), None)
+        
         if target_status == "Started":
-            if target_barcode in active_barcodes:
-                # پیدا کردن اطلاعات تکنسینی که این کار را باز نگه داشته
-                match = next((item for item in live_tasks if item["Unit_Barcode"].upper().strip() == target_barcode), None)
-                tech_name = match["Technician"] if match else "someone"
-                act_name = match["Activity_Type"] if match else "an activity"
-                st.error(f"❌ Error: Unit {target_barcode} is already IN PROGRESS by {tech_name} for '{act_name}'.")
+            # اگر این بارکد دقیقاً برای همین فعالیت از قبل استارت شده باشد
+            if matching_job:
+                st.error(f"❌ Error: Unit {target_barcode} is already IN PROGRESS for '{target_activity}' by {matching_job['Technician']}.")
                 is_error = True
         else:
-            if target_barcode not in active_barcodes:
-                st.error(f"❌ CRITICAL ERROR: No 'Started' log found in Google Sheets for unit {target_barcode}. You cannot complete an unstarted task!")
+            # برای وضعیت‌های پایانی (Passed, Failed, BER)، باید حتماً همان فعالیت استارت شده باشد
+            if not matching_job:
+                # چک می‌کنیم آیا برای یک فعالیت دیگر باز است که راهنمایی دقیق‌تری بکنیم
+                any_job_for_barcode = next((item for item in live_tasks if item["Unit_Barcode"].upper().strip() == target_barcode), None)
+                if any_job_for_barcode:
+                    st.error(f"❌ CRITICAL ERROR: Unit {target_barcode} is currently open for '{any_job_for_barcode['Activity_Type']}'. You cannot submit a status for '{target_activity}'!")
+                else:
+                    st.error(f"❌ CRITICAL ERROR: No 'Started' log found in Google Sheets for unit {target_barcode} under '{target_activity}'. You must start the task first!")
                 is_error = True
-        # -------------------------------------------------------------------------
+        # -------------------------------------------------------------------------------------
         
         if not is_error:
             sa_tz = pytz.timezone('Africa/Johannesburg')
@@ -137,7 +144,7 @@ if submit:
                     if response.status_code == 200:
                         st.toast(f"✅ Unit {target_barcode} successfully synced!")
                         st.success(f"✅ Data successfully synced! Unit: {target_barcode}")
-                        st.cache_data.clear() # خالی کردن کش برای لود آنی دیتای جدید در جدول پایین
+                        st.cache_data.clear() # خالی کردن فوری کش برای آپدیت زنده جدول
                         st.rerun()
                     else:
                         st.error("⚠️ Connection successful but Cloud rejected the data.")
@@ -153,7 +160,7 @@ st.subheader("⏳ Live Workshop Monitor (Active Tasks from Cloud)")
 if not live_tasks:
     st.info("No active units currently in progress. All clear in the workshop!")
 else:
-    # تبدیل مستقیم اطلاعات دریافتی از گوگل شیت به جدول شیک استریملیت
+    # تبدیل مستقیم اطلاعات دریافتی به جدول شیک استریملیت
     df_display = pd.DataFrame(live_tasks)
     df_display.columns = ["Unit Barcode", "Technician", "Current Activity", "Started At"]
     st.dataframe(df_display, use_container_width=True)
