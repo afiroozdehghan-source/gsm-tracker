@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 from datetime import datetime
 import pytz
+import pandas as pd  # مفقود شده بود که اضافه شد pd خطایی که رخ داد به خاطر این بود که کتابخانه پانداز با نام مخفف
 
 # --- CONFIGURATION ---
 WEBAPP_URL = "https://script.google.com/macros/s/AKfycbya-PN_qZ20dy1RMX4utbyI6ozjMJ80mdVJb0398_pJ4KK48mLhmhAzGnaJdlL4Avqu/exec" 
@@ -39,9 +40,8 @@ if not st.session_state["logged_in"]:
     st.stop()
 
 # --- حافظه میانی (بافر زنده استریملیت برای کنترل خطا) ---
-# این بافر لیست قطعات فعال کارگاه را که دکمه استارت آن‌ها زده شده مدیریت می‌کند
 if "active_buffer" not in st.session_state:
-    st.session_state["active_buffer"] = {}  # ساختار به صورت {barcode: {"activity": activity, "tech": tech}}
+    st.session_state["active_buffer"] = {}  # ساختار به صورت {barcode: {"activity": activity, "tech": tech, "start_time": time}}
 
 # --- APP INTERFACE ---
 st.title("📶 GSM Systems Tracker")
@@ -104,10 +104,13 @@ if submit:
                 is_error = True
             else:
                 # اگر مشکلی نبود، قطعه به بافر کارهای فعال اضافه می‌شود
+                # تنظیم دقیق منطقه زمانی آفریقای جنوبی برای زمان شروع داخلی بافر
+                sa_tz = pytz.timezone('Africa/Johannesburg')
+                now_sa = datetime.now(sa_tz)
                 st.session_state["active_buffer"][target_barcode] = {
                     "activity": target_activity,
                     "tech": current_tech,
-                    "start_time": datetime.now().strftime("%H:%M:%S")
+                    "start_time": now_sa.strftime("%H:%M:%S")
                 }
                 
         else:  # وضعیت‌های پایانی: Passed, Failed, BER
@@ -123,7 +126,6 @@ if submit:
         
         # اگر خطایی وجود نداشت، دیتا به گوگل‌شیت ارسال می‌شود
         if not is_error:
-            # تنظیم دقیق منطقه زمانی آفریقای جنوبی (SAST)
             sa_tz = pytz.timezone('Africa/Johannesburg')
             now_sa = datetime.now(sa_tz)
             
@@ -151,24 +153,25 @@ if submit:
                             if target_barcode in st.session_state["active_buffer"]:
                                 del st.session_state["active_buffer"][target_barcode]
                         else:
-                            st.session_state["active_buffer"][target_barcode] = {"activity": target_activity, "tech": current_tech}
+                            st.session_state["active_buffer"][target_barcode] = {
+                                "activity": target_activity, 
+                                "tech": current_tech,
+                                "start_time": now_sa.strftime("%H:%M:%S")
+                            }
                 except Exception as e:
                     st.error(f"Error connecting to Cloud: {e}")
-                    # در صورت خطای شبکه نیز بافر را برای امنیت دیتا ریست می‌کنیم
                     if target_status == "Started" and target_barcode in st.session_state["active_buffer"]:
                         del st.session_state["active_buffer"][target_barcode]
     else:
         st.error("Barcode is required! Please scan a unit first.")
 
 # --- مانیتورینگ زنده کارگاه (Active Buffer) ---
-# نمایش بردهایی که هم‌اکنون زیر دست تکنسین‌ها باز هستند در پایین صفحه
 st.markdown("---")
 st.subheader("⏳ Units Currently In Progress (Live Workshop Buffer)")
 
 if not st.session_state["active_buffer"]:
     st.info("No active units currently in progress. All clear!")
 else:
-    # تبدیل بافر به یک جدول زیبا برای نمایش به تکنسین‌ها و علیرضا
     buffer_display = []
     for bc, info in st.session_state["active_buffer"].items():
         buffer_display.append({
@@ -177,4 +180,5 @@ else:
             "Activity": info["activity"],
             "Started At": info.get("start_time", "N/A")
         })
+    # با تعریف ایمپورت در بالای کد، این خط بدون مشکل جدول را رسم می‌کند
     st.dataframe(pd.DataFrame(buffer_display), use_container_width=True)
