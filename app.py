@@ -50,7 +50,7 @@ def fetch_live_buffer(url):
     except:
         return []
 
-# خواندن دیتای زنده برای کنترل خطای چند مرحله‌ای
+# خواندن دیتای زنده برای کنترل خطاها
 live_tasks = fetch_live_buffer(WEBAPP_URL)
 
 # --- APP INTERFACE ---
@@ -88,7 +88,7 @@ comment = st.text_input("Notes", key="notes_input")
 
 submit = st.button("Submit to Cloud", type="primary", on_click=clear_all_fields)
 
-# پردازش اطلاعات
+# پردازش اطلاعات پس از فشردن دکمه سابمیت
 if submit:
     target_barcode = st.session_state.get("barcode_to_submit", "").upper().strip()
     target_activity = st.session_state.get("activity_to_submit", "Screen Test")
@@ -99,27 +99,31 @@ if submit:
         current_tech = st.session_state["username"].capitalize()
         is_error = False
         
-        # ۱. بررسی اینکه آیا این بارکد کلاً در جدول کارهای باز (تحت هر فعالیتی) وجود دارد یا خیر
+        # پیدا کردن فعالیتِ باز برای این بارکد (فرقی نمی‌کند چه فعالیتی باشد)
         any_existing_job = next((item for item in live_tasks if 
-                                 str(item["Unit_Barcode"]).upper().strip() == target_barcode), None)
+                                 str(item.get("Unit_Barcode", "")).upper().strip() == target_barcode), None)
         
-        # --- سیستم کنترل خطای زنده، سه قفله و اصلاح‌شده ---
+        # --- منطق اصلاح‌شده و دقیق کنترل خطای سه قفله ---
         if target_status == "Started":
-            # اگر قطعه کلاً در کارگاه باز باشد (فرقی نمی‌کند چه فعالیتی)، اجازه استارت جدید تحت هیچ فعالیتی را نمی‌دهد
+            # اگر قطعه از قبل یک کار باز در کارگاه داشته باشد، اجازه شروع کار جدید (تحت هر عنوانی) را نمی‌دهد
             if any_existing_job:
-                st.error(f"❌ Error: Unit {target_barcode} is ALREADY ACTIVE in the workshop! It was started by {any_existing_job['Technician']} for '{any_existing_job['Activity_Type']}'. You must finish that task first!")
+                st.error(f"❌ Error: Unit {target_barcode} is ALREADY ACTIVE! It was started by {any_existing_job.get('Technician', 'someone')} for '{any_existing_job.get('Activity_Type', 'an activity')}'.")
                 is_error = True
         else:
-            # برای وضعیت‌های پایانی (Passed, Failed, BER)، باید دقیقاً همین فعالیت استارت شده باشد
+            # برای وضعیت‌های پایانی (Passed, Failed, BER)، باید حتماً یک کار باز وجود داشته باشد
             if not any_existing_job:
-                st.error(f"❌ CRITICAL ERROR: No 'Started' log found for unit {target_barcode}. You cannot complete a task that hasn't been started!")
+                st.error(f"❌ CRITICAL ERROR: No active 'Started' log found for unit {target_barcode}. You cannot complete an unstarted task!")
                 is_error = True
-            elif str(any_existing_job["Activity_Type"]).lower().strip() != target_activity.lower().strip():
-                # اگر قطعه باز است، اما تکنسین دارد یک فعالیت دیگر را ثبت پایان می‌زند!
-                st.error(f"❌ CRITICAL ERROR: Unit {target_barcode} is currently open for '{any_existing_job['Activity_Type']}'. You cannot submit a completion status for '{target_activity}'!")
-                is_error = True
+            else:
+                # اگر کار باز وجود دارد، باید بررسی شود که دقیقاً مربوط به همین فعالیتِ انتخاب شده باشد
+                opened_activity = str(any_existing_job.get("Activity_Type", "")).lower().strip()
+                current_activity = target_activity.lower().strip()
+                if opened_activity != current_activity:
+                    st.error(f"❌ CRITICAL ERROR: Unit {target_barcode} is currently open for '{any_existing_job.get('Activity_Type', '')}'. You cannot submit a completion status for '{target_activity}'!")
+                    is_error = True
         # -------------------------------------------------------------------------------------
         
+        # اگر دیتای ورودی هیچ خطای منطقی نداشت، ارسال به کلود انجام می‌شود
         if not is_error:
             sa_tz = pytz.timezone('Africa/Johannesburg')
             now_sa = datetime.now(sa_tz)
@@ -141,7 +145,7 @@ if submit:
                     if response.status_code == 200:
                         st.toast(f"✅ Unit {target_barcode} successfully synced!")
                         st.success(f"✅ Data successfully synced! Unit: {target_barcode}")
-                        st.cache_data.clear() # رفرش فوری جدول پایین
+                        st.cache_data.clear() # خالی کردن کش جهت به‌روزرسانی آنی جدول مانیتورینگ
                         st.rerun()
                     else:
                         st.error("⚠️ Connection successful but Cloud rejected the data.")
@@ -158,5 +162,10 @@ if not live_tasks:
     st.info("No active units currently in progress. All clear in the workshop!")
 else:
     df_display = pd.DataFrame(live_tasks)
-    df_display.columns = ["Unit Barcode", "Technician", "Current Activity", "Started At"]
-    st.dataframe(df_display, use_container_width=True)
+    # اطمینان از اینکه ستون‌ها دقیقاً طبق فیلدهای دریافتی مرتب و نام‌گذاری می‌شوند
+    if not df_display.empty and "Unit_Barcode" in df_display.columns:
+        df_display = df_display[["Unit_Barcode", "Technician", "Activity_Type", "Start_Time"]]
+        df_display.columns = ["Unit Barcode", "Technician", "Current Activity", "Started At"]
+        st.dataframe(df_display, use_container_width=True)
+    else:
+        st.info("No active units currently in progress. All clear in the workshop!")
