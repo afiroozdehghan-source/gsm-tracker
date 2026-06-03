@@ -5,6 +5,7 @@ import pytz
 import pandas as pd
 
 # --- CONFIGURATION ---
+# 🛑 حتماً لینک جدید دریافتی از مرحله دیپلوی بالا را اینجا جایگزین کنید
 WEBAPP_URL = "https://script.google.com/macros/s/AKfycbya-PN_qZ20dy1RMX4utbyI6ozjMJ80mdVJb0398_pJ4KK48mLhmhAzGnaJdlL4Avqu/exec" 
 
 USER_CREDENTIALS = {
@@ -40,17 +41,17 @@ if not st.session_state["logged_in"]:
     st.stop()
 
 # --- تابع دریافت زنده دیتای بافر از گوگل شیت ---
-@st.cache_data(ttl=2) 
+@st.cache_data(ttl=1) # تغییر زمان به ۱ ثانیه برای لود آنی
 def fetch_live_buffer(url):
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=5)
         if response.status_code == 200:
             return response.json()
         return []
     except:
         return []
 
-# خواندن دیتای زنده برای کنترل خطاها
+# خواندن زنده کارهای باز کارگاه از کلود
 live_tasks = fetch_live_buffer(WEBAPP_URL)
 
 # --- APP INTERFACE ---
@@ -99,31 +100,31 @@ if submit:
         current_tech = st.session_state["username"].capitalize()
         is_error = False
         
-        # پیدا کردن فعالیتِ باز برای این بارکد (فرقی نمی‌کند چه فعالیتی باشد)
-        any_existing_job = next((item for item in live_tasks if 
-                                 str(item.get("Unit_Barcode", "")).upper().strip() == target_barcode), None)
+        # پیدا کردن اینکه آیا این قطعه در حال حاضر کارِ بازی در کلود دارد یا خیر
+        existing_job = next((item for item in live_tasks if 
+                             str(item.get("Unit_Barcode", "")).upper().strip() == target_barcode), None)
         
-        # --- منطق اصلاح‌شده و دقیق کنترل خطای سه قفله ---
+        # --- سیستم کنترل خطای زنده، سه قفله و کاملاً کالیبره شده ---
         if target_status == "Started":
-            # اگر قطعه از قبل یک کار باز در کارگاه داشته باشد، اجازه شروع کار جدید (تحت هر عنوانی) را نمی‌دهد
-            if any_existing_job:
-                st.error(f"❌ Error: Unit {target_barcode} is ALREADY ACTIVE! It was started by {any_existing_job.get('Technician', 'someone')} for '{any_existing_job.get('Activity_Type', 'an activity')}'.")
+            # اگر برد کلاً یک کار باز داشته باشد، اجازه موازی‌کاری و استارت مجدد تحت هیچ عنوانی داده نمی‌شود
+            if existing_job:
+                st.error(f"❌ Error: Unit {target_barcode} is ALREADY ACTIVE! Started by {existing_job.get('Technician', 'someone')} for '{existing_job.get('Activity_Type', 'an activity')}'. Finish that first!")
                 is_error = True
         else:
-            # برای وضعیت‌های پایانی (Passed, Failed, BER)، باید حتماً یک کار باز وجود داشته باشد
-            if not any_existing_job:
-                st.error(f"❌ CRITICAL ERROR: No active 'Started' log found for unit {target_barcode}. You cannot complete an unstarted task!")
+            # برای وضعیت‌های نهایی (Passed, Failed, BER)، باید قطعه حتماً استارت شده باشد
+            if not existing_job:
+                st.error(f"❌ CRITICAL ERROR: No active 'Started' log found for unit {target_barcode}. You must start the task first!")
                 is_error = True
             else:
-                # اگر کار باز وجود دارد، باید بررسی شود که دقیقاً مربوط به همین فعالیتِ انتخاب شده باشد
-                opened_activity = str(any_existing_job.get("Activity_Type", "")).lower().strip()
+                # اگر قطعه باز است، باید دقیقاً نوع فعالیتش با فعالیتی که تکنسین می‌خواهد ببندد یکی باشد
+                opened_activity = str(existing_job.get("Activity_Type", "")).lower().strip()
                 current_activity = target_activity.lower().strip()
                 if opened_activity != current_activity:
-                    st.error(f"❌ CRITICAL ERROR: Unit {target_barcode} is currently open for '{any_existing_job.get('Activity_Type', '')}'. You cannot submit a completion status for '{target_activity}'!")
+                    st.error(f"❌ CRITICAL ERROR: Unit {target_barcode} is currently open for '{existing_job.get('Activity_Type', '')}'. You cannot submit a completion status for '{target_activity}'!")
                     is_error = True
         # -------------------------------------------------------------------------------------
         
-        # اگر دیتای ورودی هیچ خطای منطقی نداشت، ارسال به کلود انجام می‌شود
+        # ارسال نهایی به کلود در صورت نبود خطای منطقی
         if not is_error:
             sa_tz = pytz.timezone('Africa/Johannesburg')
             now_sa = datetime.now(sa_tz)
@@ -141,11 +142,11 @@ if submit:
             
             with st.spinner("Syncing to cloud database..."):
                 try:
-                    response = requests.post(WEBAPP_URL, json=payload)
+                    response = requests.post(WEBAPP_URL, json=payload, timeout=10)
                     if response.status_code == 200:
                         st.toast(f"✅ Unit {target_barcode} successfully synced!")
                         st.success(f"✅ Data successfully synced! Unit: {target_barcode}")
-                        st.cache_data.clear() # خالی کردن کش جهت به‌روزرسانی آنی جدول مانیتورینگ
+                        st.cache_data.clear() # خالی کردن آنی کش برای رفرش فوری جدول پایین
                         st.rerun()
                     else:
                         st.error("⚠️ Connection successful but Cloud rejected the data.")
@@ -162,7 +163,6 @@ if not live_tasks:
     st.info("No active units currently in progress. All clear in the workshop!")
 else:
     df_display = pd.DataFrame(live_tasks)
-    # اطمینان از اینکه ستون‌ها دقیقاً طبق فیلدهای دریافتی مرتب و نام‌گذاری می‌شوند
     if not df_display.empty and "Unit_Barcode" in df_display.columns:
         df_display = df_display[["Unit_Barcode", "Technician", "Activity_Type", "Start_Time"]]
         df_display.columns = ["Unit Barcode", "Technician", "Current Activity", "Started At"]
