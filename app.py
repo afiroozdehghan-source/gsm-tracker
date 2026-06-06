@@ -6,7 +6,7 @@ import pandas as pd
 
 # --- CONFIGURATION ---
 # 🛑 حتماً لینک جدید دریافتی از مرحله دیپلوی بالا را اینجا جایگزین کنید
-WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxUHURh77wu24N6wtewlEK0EspvcfzhpP24eaqDI9nIJorGvblC5akRex1Cjr_xozlP/exec" 
+WEBAPP_URL = "https://script.google.com/macros/s/AKfycbz8JdU8Xj4Qp3kleQcvztBDmP0pyGR4yJG66NwHgihNqh7F1Ly4WokN0s0i4_jqjspZ/exec" 
 
 USER_CREDENTIALS = {
     "alireza": "admin2026",
