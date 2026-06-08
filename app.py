@@ -11,7 +11,8 @@ WEBAPP_URL = "https://script.google.com/macros/s/AKfycbw-x9dUgHhuW-AxSo5cCoRvHat
 USER_CREDENTIALS = {
     "alireza": "admin2026",
     "keno": "keno123",
-    "mbina": "mbina123",
+    "pitse": "pitse123",
+    "tshidiso":"tshidiso123",
     "john": "admin123",
     "thabang": "thabang123",
     "khanyisani": "khanyisani123",
