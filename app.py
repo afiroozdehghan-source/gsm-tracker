@@ -5,8 +5,8 @@ import pytz
 import pandas as pd
 
 # --- CONFIGURATION ---
-# 🛑 حتماً لینک جدید دریافتی از مرحله دیپلوی بالا را اینجا جایگزین کنید
-WEBAPP_URL = "https://script.google.com/macros/s/AKfycbw-x9dUgHhuW-AxSo5cCoRvHatF2B11ro-eyFb7j7_kKLqTjJntOSeZFZC9l01DK2Fg/exec" 
+# 🛑 لینک جدید و آپدیت‌شده‌ی گوگل اسکریپت جایگزین شد
+WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwNdieK-MpxcNXd6JqkClEYWu1KqkQcTAyAEzm_jN-lgvTIsq-ihLeXAH6E12vJnsvB/exec" 
 
 USER_CREDENTIALS = {
     "alireza": "admin2026",
@@ -165,6 +165,25 @@ if not live_tasks:
 else:
     df_display = pd.DataFrame(live_tasks)
     if not df_display.empty and "Unit_Barcode" in df_display.columns:
+        
+        # 🛠️ اصلاح و یکپارچه‌سازی نمایش زمان شروع به صورت تایم‌استمپ کامل بدون مشکل سال 1899
+        if "Start_Time" in df_display.columns:
+            # تبدیل به شیء زمان پانداس جهت مدیریت خطاها
+            df_display["Start_Time"] = pd.to_datetime(df_display["Start_Time"], errors='coerce')
+            
+            # دریافت تاریخ امروز کارگاه بر اساس آفریقای جنوبی برای جایگزینی ردیف‌های قدیمی احتمالی با سال 1899
+            sa_tz = pytz.timezone('Africa/Johannesburg')
+            today_date = datetime.now(sa_tz).date()
+            
+            # اصلاح تاریخ ردیف‌های ۱۸۹۹ و حفظ ساعت دقیق آن‌ها
+            df_display["Start_Time"] = df_display["Start_Time"].apply(
+                lambda x: datetime.combine(today_date, x.time()) if pd.notnull(x) and x.year == 1899 else x
+            )
+            
+            # فرمت‌دهی نهایی نمایش ستون به صورت رشته تایم‌استمپ کامل و شیک
+            df_display["Start_Time"] = df_display["Start_Time"].dt.strftime("%Y-%m-%d %H:%M:%S")
+        # -----------------------------------------------------------------------------------
+
         df_display = df_display[["Unit_Barcode", "Technician", "Activity_Type", "Start_Time"]]
         df_display.columns = ["Unit Barcode", "Technician", "Current Activity", "Started At"]
         st.dataframe(df_display, use_container_width=True)
