@@ -5,7 +5,6 @@ import pytz
 import pandas as pd
 
 # --- CONFIGURATION ---
-# 🛑 حتماً لینک جدید دریافتی از مرحله دیپلوی بالا را اینجا جایگزین کنید
 WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwNdieK-MpxcNXd6JqkClEYWu1KqkQcTAyAEzm_jN-lgvTIsq-ihLeXAH6E12vJnsvB/exec" 
 
 USER_CREDENTIALS = {
@@ -42,7 +41,7 @@ if not st.session_state["logged_in"]:
     st.stop()
 
 # --- تابع دریافت زنده دیتای بافر از گوگل شیت ---
-@st.cache_data(ttl=1) # تغییر زمان به ۱ ثانیه برای لود آنی
+@st.cache_data(ttl=1) 
 def fetch_live_buffer(url):
     try:
         response = requests.get(url, timeout=5)
@@ -88,9 +87,16 @@ activity = st.radio("Activity", ["Screen Test", "Repair", "Soak Test"], horizont
 status = st.selectbox("Status", ["Started", "Passed", "Failed", "BER"], key="status_input")
 comment = st.text_input("Notes", key="notes_input")
 
+# دکمه ثبت
 submit = st.button("Submit to Cloud", type="primary", on_click=clear_all_fields)
 
-# ) پردازش اطلاعات پس از فشردن دکمه سابمیت (کاملا بدون تغییر
+# 🛠️ نمایش پیغام ثبت موفقیت‌آمیز دقیقاً زیر دکمه (حتی پس از رفرش شدن صفحه)
+if "success_msg" in st.session_state:
+    st.success(st.session_state["success_msg"])
+    st.toast(st.session_state["success_msg"])
+    del st.session_state["success_msg"] # پاک کردن از حافظه برای فرم بعدی
+
+# پردازش اطلاعات پس از فشردن دکمه سابمیت
 if submit:
     target_barcode = st.session_state.get("barcode_to_submit", "").upper().strip()
     target_activity = st.session_state.get("activity_to_submit", "Screen Test")
@@ -107,17 +113,14 @@ if submit:
         
         # --- سیستم کنترل خطای زنده، سه قفله و کاملاً کالیبره شده ---
         if target_status == "Started":
-            # اگر برد کلاً یک کار باز داشته باشد، اجازه موازی‌کاری و استارت مجدد تحت هیچ عنوانی داده نمی‌شود
             if existing_job:
                 st.error(f"❌ Error: Unit {target_barcode} is ALREADY ACTIVE! Started by {existing_job.get('Technician', 'someone')} for '{existing_job.get('Activity_Type', 'an activity')}'. Finish that first!")
                 is_error = True
         else:
-            # برای وضعیت‌های نهایی (Passed, Failed, BER)، باید قطعه حتماً استارت شده باشد
             if not existing_job:
                 st.error(f"❌ CRITICAL ERROR: No active 'Started' log found for unit {target_barcode}. You must start the task first!")
                 is_error = True
             else:
-                # اگر قطعه باز است، باید دقیقاً نوع فعالیتش با فعالیتی که تکنسین می‌خواهد ببندد یکی باشد
                 opened_activity = str(existing_job.get("Activity_Type", "")).lower().strip()
                 current_activity = target_activity.lower().strip()
                 if opened_activity != current_activity:
@@ -145,9 +148,9 @@ if submit:
                 try:
                     response = requests.post(WEBAPP_URL, json=payload, timeout=10)
                     if response.status_code == 200:
-                        st.toast(f"✅ Unit {target_barcode} successfully synced!")
-                        st.success(f"✅ Data successfully synced! Unit: {target_barcode}")
-                        st.cache_data.clear() # خالی کردن آنی کش برای رفرش فوری جدول پایین
+                        # ذخیره پیغام در حافظه سشن قبل از رفرش تا بعد از رفرش نمایش داده شود
+                        st.session_state["success_msg"] = f"✅ Data successfully synced! Unit: {target_barcode} ({target_activity} -> {target_status})"
+                        st.cache_data.clear() 
                         st.rerun()
                     else:
                         st.error("⚠️ Connection successful but Cloud rejected the data.")
@@ -156,7 +159,7 @@ if submit:
     else:
         st.error("Barcode is required! Please scan a unit first.")
 
-# --- مانیتورینگ زنده کارگاه (نمایش شیک جدول کارهای فعال) - کاملا بدون تغییر ---
+# --- مانیتورینگ زنده کارگاه (نمایش شیک جدول کارهای فعال) ---
 st.markdown("---")
 st.subheader("⏳ Live Workshop Monitor (Active Tasks from Cloud)")
 
