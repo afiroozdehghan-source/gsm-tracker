@@ -19,6 +19,7 @@ USER_CREDENTIALS = {
     "thabiso": "thabiso123",
     "tiisetso": "tiisetso123",
     "dennis": "dennis123",
+    "terrence": "terrence123",
     "malcom": "malcom123"
 }
 
