@@ -5,22 +5,23 @@ import pytz
 import pandas as pd
 
 # --- CONFIGURATION ---
-WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwNdieK-MpxcNXd6JqkClEYWu1KqkQcTAyAEzm_jN-lgvTIsq-ihLeXAH6E12vJnsvB/exec" 
+WEBAPP_URL = "https://script.google.com/macros/s/AKfycbz9UtvZF0A3WjBGGwvSBtxRwO9RjBHKQ091kx6JoW23Pk0_1bk1actTX21ejnNrf0Kd/exec" 
 
-USER_CREDENTIALS = {
-    "alireza": "admin2026",
-    "keno": "keno123",
-    "pitse": "pitse123",
-    "tshidiso":"tshidiso123",
-    "john": "admin123",
-    "thabang": "thabang123",
-    "khanyisani": "khanyisani123",
-    "tshepo": "tshepo123",
-    "thabiso": "thabiso123",
-    "tiisetso": "tiisetso123",
-    "dennis": "dennis123",
-    "terrence": "terrence123",
-    "malcom": "malcom123"
+# ساختار اطلاعات کاربران و پروژه‌ها
+USER_DATA = {
+    "alireza": {"password": "admin2026", "project": "Vodacom", "role": "admin"},
+    "john": {"password": "admin123", "project": "Vodacom", "role": "admin"},
+    "keno": {"password": "keno123", "project": "Vodacom", "role": "tech"},
+    "pitse": {"password": "pitse123", "project": "Vodacom", "role": "tech"},
+    "tshidiso": {"password": "tshidiso123", "project": "Vodacom", "role": "tech"},
+    "thabang": {"password": "thabang123", "project": "Vodacom", "role": "tech"},
+    "khanyisani": {"password": "khanyisani123", "project": "Vodacom", "role": "tech"},
+    "tshepo": {"password": "tshepo123", "project": "Vodacom", "role": "tech"},
+    "dennis": {"password": "dennis123", "project": "Vodacom", "role": "admin"},
+    "terrence": {"password": "terrence123", "project": "Vodacom", "role": "admin"},
+    "malcom": {"password": "malcom123", "project": "Vodacom", "role": "admin"},
+    "thabiso": {"password": "thabiso123", "project": "Infinity", "role": "tech"},
+    "tiisetso": {"password": "tiisetso123", "project": "Infinity", "role": "tech"}
 }
 
 st.set_page_config(page_title="GSM Systems Cloud", page_icon="📶")
@@ -35,15 +36,17 @@ if not st.session_state["logged_in"]:
         u = st.text_input("Username").lower()
         p = st.text_input("Password", type="password")
         if st.form_submit_button("Login"):
-            if u in USER_CREDENTIALS and USER_CREDENTIALS[u] == p:
+            if u in USER_DATA and USER_DATA[u]["password"] == p:
                 st.session_state["logged_in"] = True
                 st.session_state["username"] = u
+                st.session_state["project"] = USER_DATA[u]["project"]
+                st.session_state["role"] = USER_DATA[u]["role"]
                 st.rerun()
             else:
                 st.error("Invalid Credentials")
     st.stop()
 
-# --- تابع دریافت زنده دیتای بافر از گوگل شیت ---
+# --- FETCH DATA ---
 @st.cache_data(ttl=1) 
 def fetch_live_buffer(url):
     try:
@@ -54,14 +57,12 @@ def fetch_live_buffer(url):
     except:
         return []
 
-# خواندن زنده کارهای باز کارگاه از کلود
 live_tasks = fetch_live_buffer(WEBAPP_URL)
 
 # --- APP INTERFACE ---
 st.title("📶 GSM Systems Tracker")
-st.write(f"Technician: **{st.session_state['username'].capitalize()}**")
+st.write(f"User: **{st.session_state['username'].capitalize()}** | Project: **{st.session_state['project']}**")
 
-# ایجاد و مدیریت کلیدهای حافظه برای تمام فیلدها
 if "barcode_input" not in st.session_state:
     st.session_state["barcode_input"] = ""
 if "activity_input" not in st.session_state:
@@ -82,24 +83,20 @@ def clear_all_fields():
     st.session_state["status_input"] = "Started"
     st.session_state["notes_input"] = ""
 
-# کادر اسکن بارکد
+# فرم ثبت
 barcode = st.text_input("Scan Barcode (Place cursor here and scan)", key="barcode_input")
-
-# گزینه‌های فعالیت، وضعیت و یادداشت‌ها
 activity = st.radio("Activity", ["Screen Test", "Repair", "Soak Test"], horizontal=True, key="activity_input")
-status = st.selectbox("Status", ["Started", "Passed", "Failed", "BER"], key="status_input")
+status = st.selectbox("Status", ["Started", "WIP", "Passed", "Failed", "BER"], key="status_input")
 comment = st.text_input("Notes", key="notes_input")
 
-# دکمه ثبت
 submit = st.button("Submit to Cloud", type="primary", on_click=clear_all_fields)
 
-# 🛠️ نمایش پیغام ثبت موفقیت‌آمیز دقیقاً زیر دکمه (حتی پس از رفرش شدن صفحه)
 if "success_msg" in st.session_state:
     st.success(st.session_state["success_msg"])
     st.toast(st.session_state["success_msg"])
-    del st.session_state["success_msg"] # پاک کردن از حافظه برای فرم بعدی
+    del st.session_state["success_msg"]
 
-# پردازش اطلاعات پس از فشردن دکمه سابمیت
+# پردازش ثبت
 if submit:
     target_barcode = st.session_state.get("barcode_to_submit", "").upper().strip()
     target_activity = st.session_state.get("activity_to_submit", "Screen Test")
@@ -110,28 +107,17 @@ if submit:
         current_tech = st.session_state["username"].capitalize()
         is_error = False
         
-        # پیدا کردن اینکه آیا این قطعه در حال حاضر کارِ بازی در کلود دارد یا خیر
-        existing_job = next((item for item in live_tasks if 
-                             str(item.get("Unit_Barcode", "")).upper().strip() == target_barcode), None)
+        existing_job = next((item for item in live_tasks if str(item.get("Unit_Barcode", "")).upper().strip() == target_barcode), None)
         
-        # --- سیستم کنترل خطای زنده، سه قفله و کاملاً کالیبره شده ---
         if target_status == "Started":
             if existing_job:
-                st.error(f"❌ Error: Unit {target_barcode} is ALREADY ACTIVE! Started by {existing_job.get('Technician', 'someone')} for '{existing_job.get('Activity_Type', 'an activity')}'. Finish that first!")
+                st.error(f"❌ Error: Unit {target_barcode} is ALREADY ACTIVE!")
                 is_error = True
         else:
             if not existing_job:
-                st.error(f"❌ CRITICAL ERROR: No active 'Started' log found for unit {target_barcode}. You must start the task first!")
+                st.error(f"❌ CRITICAL ERROR: Unit {target_barcode} is not active. Start it first!")
                 is_error = True
-            else:
-                opened_activity = str(existing_job.get("Activity_Type", "")).lower().strip()
-                current_activity = target_activity.lower().strip()
-                if opened_activity != current_activity:
-                    st.error(f"❌ CRITICAL ERROR: Unit {target_barcode} is currently open for '{existing_job.get('Activity_Type', '')}'. You cannot submit a completion status for '{target_activity}'!")
-                    is_error = True
-        # -------------------------------------------------------------------------------------
         
-        # ارسال نهایی به کلود در صورت نبود خطای منطقی
         if not is_error:
             sa_tz = pytz.timezone('Africa/Johannesburg')
             now_sa = datetime.now(sa_tz)
@@ -144,35 +130,48 @@ if submit:
                 "Unit_Barcode": target_barcode,
                 "Activity_Type": target_activity,  
                 "Status": target_status,          
-                "Technician_Comment": target_comment  
+                "Technician_Comment": target_comment,
+                "Project": st.session_state["project"] 
             }
             
-            with st.spinner("Syncing to cloud database..."):
+            with st.spinner("Syncing..."):
                 try:
                     response = requests.post(WEBAPP_URL, json=payload, timeout=10)
                     if response.status_code == 200:
-                        # ذخیره پیغام در حافظه سشن قبل از رفرش تا بعد از رفرش نمایش داده شود
-                        st.session_state["success_msg"] = f"✅ Data successfully synced! Unit: {target_barcode} ({target_activity} -> {target_status})"
+                        st.session_state["success_msg"] = f"✅ Success! Unit: {target_barcode} as {target_status}"
                         st.cache_data.clear() 
                         st.rerun()
                     else:
                         st.error("⚠️ Connection successful but Cloud rejected the data.")
                 except Exception as e:
-                    st.error(f"Error connecting to Cloud: {e}")
+                    st.error(f"Error: {e}")
     else:
-        st.error("Barcode is required! Please scan a unit first.")
+        st.error("Barcode is required!")
 
-# --- مانیتورینگ زنده کارگاه (نمایش شیک جدول کارهای فعال) ---
+# --- MONITORING ---
 st.markdown("---")
-st.subheader("⏳ Live Workshop Monitor (Active Tasks from Cloud)")
+st.subheader("⏳ Live Workshop Monitor")
 
-if not live_tasks:
-    st.info("No active units currently in progress. All clear in the workshop!")
+if st.session_state["role"] == "admin":
+    display_tasks = live_tasks
 else:
-    df_display = pd.DataFrame(live_tasks)
-    if not df_display.empty and "Unit_Barcode" in df_display.columns:
-        df_display = df_display[["Unit_Barcode", "Technician", "Activity_Type", "Start_Time"]]
-        df_display.columns = ["Unit Barcode", "Technician", "Current Activity", "Started At"]
+    display_tasks = [t for t in live_tasks if t.get("Project") == st.session_state["project"]]
+
+if not display_tasks:
+    st.info(f"No active units for {st.session_state['project']} project.")
+else:
+    df_display = pd.DataFrame(display_tasks)
+    
+    # تعریف ستون‌های مورد نظر
+    all_desired_cols = ["Unit_Barcode", "Technician", "Project", "Activity_Type", "Timestamp", "Status"]
+    
+    # فیلتر هوشمند ستون‌ها: فقط ستون‌هایی را انتخاب کن که در دیتای واقعی وجود دارند
+    available_cols = [c for c in all_desired_cols if c in df_display.columns]
+    
+    if available_cols:
+        df_display = df_display[available_cols]
+        # تغییر نام برای نمایش بهتر در UI
+        df_display.columns = [c.replace("_", " ") for c in df_display.columns]
         st.dataframe(df_display, use_container_width=True)
     else:
-        st.info("No active units currently in progress. All clear in the workshop!")
+        st.write("Data loaded but columns not recognized:", df_display.columns.tolist())
