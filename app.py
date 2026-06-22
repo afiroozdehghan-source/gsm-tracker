@@ -15,6 +15,7 @@ USER_DATA = {
     "pitse": {"password": "pitse123", "project": "Vodacom", "role": "tech"},
     "tshidiso": {"password": "tshidiso123", "project": "Vodacom", "role": "tech"},
     "thabang": {"password": "thabang123", "project": "Vodacom", "role": "tech"},
+    "evans": {"password": "evans123", "project": "Vodacom", "role": "tech"},
     "khanyisani": {"password": "khanyisani123", "project": "Vodacom", "role": "tech"},
     "tshepo": {"password": "tshepo123", "project": "Vodacom", "role": "tech"},
     "dennis": {"password": "dennis123", "project": "Vodacom", "role": "admin"},
