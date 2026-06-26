@@ -24,14 +24,15 @@ USER_DATA = {
     "thabiso": {"password": "thabiso123", "project": "Infinity", "role": "tech"},
     "tiisetso": {"password": "tiisetso123", "project": "Infinity", "role": "tech"},
 
-    "benjamin": {"password": "benjamin@k123", "project": "Safaricom", "role": "tech"},
     "dickson": {"password": "dickson@k123", "project": "Safaricom", "role": "tech"},
     "lenox": {"password": "lenox@k123", "project": "Safaricom", "role": "tech"},
-
+    "alex": {"password": "alex@k123", "project": "Safaricom", "role": "tech"},
+    
     "nathan": {"password": "nathan@k123", "project": "Optima", "role": "tech"},
     "nicholas": {"password": "nicholas@k123", "project": "Optima", "role": "tech"},
     "anthony": {"password": "anthony@k123", "project": "Optima", "role": "tech"},
-    "alex": {"password": "alex@k123", "project": "Optima", "role": "tech"}
+    "benjamin": {"password": "benjamin@k123", "project": "Optima", "role": "tech"},
+    
 }
 
 st.set_page_config(page_title="GSM Systems Cloud", page_icon="📶")
