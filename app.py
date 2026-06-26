@@ -30,7 +30,7 @@ USER_DATA = {
 
     "nathan": {"password": "nathan@k123", "project": "Optima", "role": "tech"},
     "nicholas": {"password": "nicholas@k123", "project": "Optima", "role": "tech"},
-    "anthony": {"password": "anthony@123", "project": "Optima", "role": "tech"},
+    "anthony": {"password": "anthony@k123", "project": "Optima", "role": "tech"},
     "alex": {"password": "alex@k123", "project": "Optima", "role": "tech"}
 }
 
